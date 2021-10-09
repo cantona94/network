@@ -1,5 +1,22 @@
 import numpy
 import scipy.special
+from tkinter import *
+import tkinter as tk
+from PIL import ImageGrab, Image
+import imageio
+
+
+# распознавание нарисованной цифры
+def predictDigit():
+    Image.open("digit.png").resize((28, 28), Image.LANCZOS).save("digit.png")
+    imgArray = imageio.imread("digit.png", as_gray=True)
+    imgData = 255.0 - imgArray.reshape(784)
+    imgData = (imgData / 255.0 * 0.99) + 0.01
+
+    outputs = n.query(imgData)
+    digit = numpy.argmax(outputs)
+
+    return digit
 
 
 # класс нейронной сети
@@ -67,9 +84,49 @@ class Network:
         return finalOutputs
 
 
+# окно рисования
+class Window(tk.Tk):
+    def __init__(self):
+        tk.Tk.__init__(self)
+
+        self.x = self.y = 0
+
+        self.canvas = tk.Canvas(self, width=500, height=500, bg="white", cursor="cross")
+        self.label = tk.Label(self, text=" ", font=("Helvetica", 14))
+        self.buttonClear = tk.Button(self, text="Очистить", command=self.clearAll)
+        self.classifyBtn = tk.Button(self, text="Распознать", command=self.classifyHandwritten)
+
+        self.canvas.grid(row=0, column=0, columnspan=2)
+        self.label.grid(row=1, column=0, columnspan=2, pady=10)
+        self.buttonClear.grid(row=2, column=0, pady=10)
+        self.classifyBtn.grid(row=2, column=1, pady=10)
+
+        self.canvas.bind("<B1-Motion>", self.drawLines)
+
+    # очистка холста
+    def clearAll(self):
+        self.canvas.delete("all")
+        self.label.configure(text=" ")
+
+    # вызов распознавания
+    def classifyHandwritten(self):
+        img = ImageGrab.grab((25, 50, 529, 554))
+        img.save("digit.png")
+        digit = predictDigit()
+
+        self.label.configure(text="Распознанная цифра: " + str(digit))
+
+    # рисование
+    def drawLines(self, event):
+        self.x = event.x
+        self.y = event.y
+        r = 15
+        self.canvas.create_oval(self.x - r, self.y - r, self.x + r, self.y + r, fill='black')
+
+
 # количество входных, скрытых и выходных нейронов
 inputNodes = 784
-hiddenNodes = 200
+hiddenNodes = 256
 outputNodes = 10
 
 # коэффициент скорости обучения
@@ -83,7 +140,7 @@ trainingDataList = trainingDataFile.readlines()
 trainingDataFile.close()
 
 # тренировка нейронной сети
-epochs = 1
+epochs = 5
 
 for i in range(epochs):
     # перебрать все записи в тренировочном наборе данных
@@ -102,7 +159,6 @@ testDataFile.close()
 
 # тестирование нейронной сети
 score = []
-
 for record in testDataList:
     allValues = record.split(',')
     # правильный ответ - первое значение
@@ -120,3 +176,8 @@ for record in testDataList:
 
 scoreArray = numpy.asarray(score)
 print("Точность:", scoreArray.sum() / scoreArray.size)
+
+# вызов окна рисования
+window = Window()
+window.geometry('%dx%d+%d+%d' % (520, 600, 0, 0))
+mainloop()
